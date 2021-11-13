@@ -116,3 +116,153 @@ Terlihat bahwa tottoland mendapatkan ip 192.174.3.34 dengan lease time 720
 #### c. Lalu restart node skypie
 
 ![7.3](img/7.3.jpeg)
+
+
+### 8. Loguetown digunakan sebagai client Proxy agar transaksi jual beli dapat terjamin keamanannya, juga untuk mencegah kebocoran data transaksi. Pada Loguetown, proxy harus bisa diakses dengan nama jualbelikapal.A11.com dengan port yang digunakan adalah 5000
+
+#### command agar menggunakan port 5000 di client
+
+```
+export http_proxy=http://jualbelikapal.a11.com:5000
+```
+
+#### setting di water7 untuk menerima request port 5000
+
+```
+echo 'nameserver 192.168.122.1' > /etc/resolv.conf
+```
+
+```
+echo 'http_port 5000
+visible_hostname jualbelikapala11
+' > /etc/squid/squid.conf
+```
+
+![8.1](img/8.1.png)
+
+### 9. Agar transaksi jual beli lebih aman dan pengguna website ada dua orang, proxy dipasang autentikasi user proxy dengan enkripsi MD5 dengan dua username, yaitu luffybelikapala11 dengan password luffy_a11 dan zorobelikapala11 dengan password zoro_a11
+
+#### menambahkan auth_param pada water7 /etc/squid/squid.conf
+
+```
+echo '
+auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
+auth_param basic children 5
+auth_param basic realm Proxy
+auth_param basic credentialsttl 2 hours
+auth_param basic casesensitive on
+acl USERS proxy_auth REQUIRED
+http_access allow USERS
+' > /etc/squid/squid.conf
+```
+
+![9.1](img/9.1.png)
+
+#### menambahkan akun atau username + pass pada water7
+```
+htpasswd -c /etc/squid/passwd luffybelikapala11  # type password luffy_a11
+htpasswd /etc/squid/passwd zorobelikapala11  # type password zoro_a11
+```
+
+hasilnya:
+
+/etc/squid/passwd
+![9.1](img/9.1.png)
+
+### 10. Transaksi jual beli tidak dilakukan setiap hari, oleh karena itu akses internet dibatasi hanya dapat diakses setiap hari Senin-Kamis pukul 07.00-11.00 dan setiap hari Selasa-Jum’at pukul 17.00-03.00 keesokan harinya (sampai Sabtu pukul 03.00)
+
+#### menambahkan time unavailable water7 /etc/squid/acl.conf
+
+```
+echo `
+acl NOT_AVAILABLE1 time S 00:00-23:59
+acl NOT_AVAILABLE2 time MT 00:00-06:59
+acl NOT_AVAILABLE3 time M 11:01-23:59
+acl NOT_AVAILABLE4 time TWH 11:01-16:59
+acl NOT_AVAILABLE5 time WH 03:01-06:59
+acl NOT_AVAILABLE6 time F 03:01-16:59
+acl NOT_AVAILABLE7 time A 03:01-23:59
+` > /etc/squid/acl.conf
+```
+
+![10.1](img/10.1.png)
+
+#### menambahkan acl.conf ke water7 /etc/squid/squid.conf
+
+```
+echo `include /etc/squid/acl.conf` > /etc/squid/squid.conf
+```
+
+hasilnya:
+
+![10.2](img/10.2.png)
+
+### 11. Agar transaksi bisa lebih fokus berjalan, maka dilakukan redirect website agar mudah mengingat website transaksi jual beli kapal. Setiap mengakses google.com, akan diredirect menuju super.franky.a11.com dengan website yang sama pada soal shift modul 2. Web server super.franky.a11.com berada pada node Skypie
+
+#### menambahkan deny ke google
+
+```
+echo `
+acl google dstdomain google.com
+http_access deny google
+deny_info http://super.franky.a11.com/ google
+` > /etc/squid/squid.conf
+```
+
+hasilnya:
+
+![11.1](img/11.1.png)
+
+#### mengatur ulang bind9 di enieslobby /etc/bind/named.conf.local
+
+![11.2](img/11.2.png)
+
+#### bind9 untuk enieslobby /super.franky.a11.com
+
+![11.3](img/11.3.png)
+
+#### bind9 untuk enieslobby /jualbelikapal.a11.com
+
+![11.4](img/11.4.png)
+
+
+### 12. Saatnya berlayar! Luffy dan Zoro akhirnya memutuskan untuk berlayar untuk mencari harta karun di super.franky.a11.com. Tugas pencarian dibagi menjadi dua misi, Luffy bertugas untuk mendapatkan gambar (.png, .jpg), sedangkan Zoro mendapatkan sisanya. Karena Luffy orangnya sangat teliti untuk mencari harta karun, ketika ia berhasil mendapatkan gambar, ia mendapatkan gambar dan melihatnya dengan kecepatan 10 kbps
+
+#### melimit bandwidth luffy. water7 /etc/squid/acl-bandwidth.conf
+
+```
+echo`acl download url_regex -i .jpg$ .png$
+
+auth_param basic program /usr/lib/squid/basic_ncsa_auth /etc/squid/passwd
+
+acl luffy proxy_auth luffybelikapala11
+acl zoro proxy_auth zorobelikapala11
+
+delay_pools 2
+
+delay_class 1 1
+delay_parameters 1 1250/1250
+delay_access 1 deny zoro
+delay_access 1 allow luffy
+delay_access 1 allow download
+delay_access 1 deny all
+
+delay_class 2 1
+delay_parameters 2 -1/-1
+delay_access 2 allow zoro
+delay_access 2 deny luffy
+delay_access 2 deny all
+`
+```
+
+![12.2-setting-bandwidth](img/12.2-setting-bandwidth.png)
+
+![download-luffy.gif](img/download-luffy.gif)
+
+### 13. Sedangkan, Zoro yang sangat bersemangat untuk mencari harta karun, sehingga kecepatan kapal Zoro tidak dibatasi ketika sudah mendapatkan harta yang diinginkannya
+
+#### setting bandwidth ada di nomor 12
+
+![12.2-setting-bandwidth](img/12.2-setting-bandwidth.png)
+
+![download-zoro.gif](img/download-zoro.gif)
